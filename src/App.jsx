@@ -3,7 +3,7 @@ import Papa from "papaparse";
 
 // ─── Config ─────────────────────────────────────────────────
 const SPREADSHEET_ID = "1PWoAECjRVGu85YH3r8zL0s-Wi2CastXMYDWGtd7S8ZI";
-const SHEET_NAME = "detalle viajes";
+const SHEET_NAME = "Hoja 1";
 
 // CSV público del Sheet de viajes (default, para leer datos existentes)
 const DEFAULT_CSV_URL =
