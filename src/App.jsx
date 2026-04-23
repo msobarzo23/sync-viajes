@@ -91,7 +91,12 @@ function parseUploadedCSV(text) {
 
 // ─── Google Sheets API ──────────────────────────────────────
 let tokenClient = null;
-let accessToken = null;
+let accessToken = (typeof sessionStorage !== "undefined" && sessionStorage.getItem("sv_token")) || null;
+let tokenExpiry = (typeof sessionStorage !== "undefined" && Number(sessionStorage.getItem("sv_exp"))) || 0;
+
+function isTokenValid() {
+  return accessToken && Date.now() < tokenExpiry - 60_000;
+}
 
 function loadGsiScript() {
   return new Promise((resolve, reject) => {
@@ -104,8 +109,7 @@ function loadGsiScript() {
   });
 }
 
-async function getToken() {
-  await loadGsiScript();
+function requestToken(prompt) {
   return new Promise((resolve, reject) => {
     if (!tokenClient) {
       tokenClient = window.google.accounts.oauth2.initTokenClient({
@@ -117,14 +121,28 @@ async function getToken() {
     tokenClient.callback = (resp) => {
       if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
       accessToken = resp.access_token;
+      tokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
+      try {
+        sessionStorage.setItem("sv_token", accessToken);
+        sessionStorage.setItem("sv_exp", String(tokenExpiry));
+      } catch {}
       resolve(accessToken);
     };
-    tokenClient.requestAccessToken({ prompt: accessToken ? "" : "consent" });
+    tokenClient.requestAccessToken({ prompt });
   });
 }
 
+async function getToken() {
+  await loadGsiScript();
+  try {
+    return await requestToken("");
+  } catch {
+    return await requestToken("consent");
+  }
+}
+
 async function sheetsAPI(url, options = {}) {
-  if (!accessToken) await getToken();
+  if (!isTokenValid()) await getToken();
   let resp = await fetch(url, {
     ...options,
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", ...options.headers },
